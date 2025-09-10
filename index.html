@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Response System</title>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.4/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { Phone, MapPin, User, Clock, AlertCircle, CheckCircle, MessageCircle, Shield } = lucide;
+
+        const EmergencyApp = () => {
+            const [currentView, setCurrentView] = useState('home');
+            const [incidents, setIncidents] = useState([]);
+            const [rescuers, setRescuers] = useState([
+                { id: 1, name: "Fire Station Alpha", location: { lat: 14.5995, lng: 120.9842 }, type: "fire", available: true, distance: 2.1 },
+                { id: 2, name: "Medical Team Bravo", location: { lat: 14.6042, lng: 120.9822 }, type: "medical", available: true, distance: 1.8 },
+                { id: 3, name: "Rescue Unit Charlie", location: { lat: 14.5978, lng: 120.9889 }, type: "rescue", available: true, distance: 3.2 },
+                { id: 4, name: "Police Unit Delta", location: { lat: 14.6012, lng: 120.9856 }, type: "police", available: false, distance: 1.5 }
+            ]);
+            
+            const [currentIncident, setCurrentIncident] = useState({
+                type: '',
+                address: '',
+                name: '',
+                phone: '',
+                description: '',
+                severity: 'medium',
+                location: null
+            });
+
+            const [step, setStep] = useState(1);
+            const [isSubmitting, setIsSubmitting] = useState(false);
+
+            // Simulate getting user location
+            useEffect(() => {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            setCurrentIncident(prev => ({
+                                ...prev,
+                                location: {
+                                    lat: position.coords.latitude,
+                                    lng: position.coords.longitude
+                                }
+                            }));
+                        },
+                        () => {
+                            // Fallback to Manila coordinates
+                            setCurrentIncident(prev => ({
+                                ...prev,
+                                location: { lat: 14.5995, lng: 120.9842 }
+                            }));
+                        }
+                    );
+                } else {
+                    // Fallback if geolocation is not supported
+                    setCurrentIncident(prev => ({
+                        ...prev,
+                        location: { lat: 14.5995, lng: 120.9842 }
+                    }));
+                }
+            }, []);
+
+            const incidentTypes = [
+                { id: 'fire', label: 'Fire Emergency', icon: '🔥', color: 'bg-red-500' },
+                { id: 'medical', label: 'Medical Emergency', icon: '🚑', color: 'bg-blue-500' },
+                { id: 'accident', label: 'Traffic Accident', icon: '🚗', color: 'bg-yellow-500' },
+                { id: 'rescue', label: 'Rescue Needed', icon: '⛑️', color: 'bg-green-500' },
+                { id: 'police', label: 'Police Required', icon: '👮', color: 'bg-purple-500' },
+                { id: 'other', label: 'Other Emergency', icon: '⚠️', color: 'bg-gray-500' }
+            ];
+
+            const handleInputChange = (field, value) => {
+                setCurrentIncident(prev => ({ ...prev, [field]: value }));
+            };
+
+            const findNearestRescuers = (incidentType) => {
+                return rescuers
+                    .filter(rescuer => rescuer.available && (rescuer.type === incidentType || incidentType === 'other'))
+                    .sort((a, b) => a.distance - b.distance)
+                    .slice(0, 3);
+            };
+
+            const saveToDatabase = async (incident) => {
+                // Simulate cloud database save
+                const incidentData = {
+                    ...incident,
+                    id: Date.now(),
+                    timestamp: new Date().toISOString(),
+                    status: 'pending',
+                    assignedRescuer: null
+                };
+                
+                // In a real app, this would be an API call to your cloud SQL database
+                console.log('Saving to cloud database:', incidentData);
+                console.log('Database URL: https://your-api-endpoint.com/incidents');
+                console.log('Would send POST request with data:', JSON.stringify(incidentData, null, 2));
+                
+                return incidentData;
+            };
+
+            const notifyRescuer = async (rescuer, incident) => {
+                // Simulate rescuer notification
+                console.log(`Notifying ${rescuer.name} about incident:`, incident);
+                console.log('Would send SMS/Push notification to:', rescuer.name);
+                console.log('Notification message:', `Emergency: ${incident.type} at ${incident.address}. Accept? Y/N`);
+                
+                // Simulate response time
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Simulate 80% acceptance rate
+                const willRespond = Math.random() > 0.2;
+                
+                if (willRespond) {
+                    // Update rescuer availability
+                    setRescuers(prev => prev.map(r => 
+                        r.id === rescuer.id ? { ...r, available: false } : r
+                    ));
+                    
+                    console.log(`${rescuer.name} ACCEPTED the emergency call`);
+                    return { accepted: true, eta: Math.floor(Math.random() * 15) + 5 };
+                }
+                
+                console.log(`${rescuer.name} DECLINED the emergency call`);
+                return { accepted: false };
+            };
+
+            const submitIncident = async () => {
+                setIsSubmitting(true);
+                
+                try {
+                    // Save incident to database
+                    const savedIncident = await saveToDatabase(currentIncident);
+                    
+                    // Find nearest available rescuers
+                    const nearestRescuers = findNearestRescuers(currentIncident.type);
+                    
+                    if (nearestRescuers.length === 0) {
+                        alert('No rescuers available at the moment. Please try calling emergency services directly.');
+                        setIsSubmitting(false);
+                        return;
+                    }
+                    
+                    // Try to get confirmation from rescuers (starting with the nearest)
+                    for (let rescuer of nearestRescuers) {
+                        const response = await notifyRescuer(rescuer, savedIncident);
+                        
+                        if (response.accepted) {
+                            const finalIncident = {
+                                ...savedIncident,
+                                assignedRescuer: rescuer,
+                                eta: response.eta,
+                                status: 'assigned'
+                            };
+                            
+                            setIncidents(prev => [...prev, finalIncident]);
+                            setCurrentView('confirmation');
+                            setIsSubmitting(false);
+                            return;
+                        }
+                    }
+                    
+                    // If no one accepts, show fallback message
+                    alert('Unable to assign a rescuer automatically. Your incident has been logged and will be handled by the operations center.');
+                    setIncidents(prev => [...prev, savedIncident]);
+                    
+                } catch (error) {
+                    console.error('Error submitting incident:', error);
+                    alert('Error submitting incident. Please try again.');
+                }
+                
+                setIsSubmitting(false);
+            };
+
+            const resetForm = () => {
+                setCurrentIncident({
+                    type: '',
+                    address: '',
+                    name: '',
+                    phone: '',
+                    description: '',
+                    severity: 'medium',
+                    location: currentIncident.location
+                });
+                setStep(1);
+                setCurrentView('home');
+            };
+
+            if (currentView === 'home') {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-red-50 to-blue-50 p-4">
+                        <div className="max-w-md mx-auto">
+                            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+                                <div className="text-center mb-8">
+                                    <div className="bg-red-500 text-white rounded-full p-4 inline-block mb-4">
+                                        <AlertCircle size={32} />
+                                    </div>
+                                    <h1 className="text-2xl font-bold text-gray-800 mb-2">Emergency Response</h1>
+                                    <p className="text-gray-600">Quick access to emergency services</p>
+                                </div>
+                                
+                                <button
+                                    onClick={() => setCurrentView('report')}
+                                    className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-4 px-6 rounded-lg mb-4 flex items-center justify-center space-x-2 transition-colors"
+                                >
+                                    <Phone size={20} />
+                                    <span>Report Emergency</span>
+                                </button>
+                                
+                                <button
+                                    onClick={() => setCurrentView('status')}
+                                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center space-x-2 transition-colors"
+                                >
+                                    <MessageCircle size={20} />
+                                    <span>Check Status</span>
+                                </button>
+                            </div>
+
+                            <div className="bg-white rounded-xl shadow-lg p-6">
+                                <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                                    <Shield size={20} className="mr-2 text-green-500" />
+                                    Available Rescuers
+                                </h2>
+                                <div className="space-y-3">
+                                    {rescuers.map(rescuer => (
+                                        <div key={rescuer.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                            <div>
+                                                <p className="font-medium text-gray-800">{rescuer.name}</p>
+                                                <p className="text-sm text-gray-600">{rescuer.distance} km away</p>
+                                            </div>
+                                            <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                rescuer.available 
+                                                    ? 'bg-green-100 text-green-800' 
+                                                    : 'bg-red-100 text-red-800'
+                                            }`}>
+                                                {rescuer.available ? 'Available' : 'Busy'}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (currentView === 'report') {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-red-50 to-blue-50 p-4">
+                        <div className="max-w-md mx-auto">
+                            <div className="bg-white rounded-xl shadow-lg p-6">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h1 className="text-xl font-bold text-gray-800">Report Emergency</h1>
+                                    <span className="text-sm text-gray-500">Step {step} of 4</span>
+                                </div>
+                                
+                                <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
+                                    <div 
+                                        className="bg-red-500 h-2 rounded-full transition-all duration-300"
+                                        style={{ width: `${(step / 4) * 100}%` }}
+                                    ></div>
+                                </div>
+
+                                {step === 1 && (
+                                    <div>
+                                        <h2 className="text-lg font-semibold mb-4">What type of emergency?</h2>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {incidentTypes.map(type => (
+                                                <button
+                                                    key={type.id}
+                                                    onClick={() => {
+                                                        handleInputChange('type', type.id);
+                                                        setStep(2);
+                                                    }}
+                                                    className={`p-4 rounded-lg border-2 transition-all ${
+                                                        currentIncident.type === type.id
+                                                            ? 'border-red-500 bg-red-50'
+                                                            : 'border-gray-200 hover:border-red-300'
+                                                    }`}
+                                                >
+                                                    <div className="text-2xl mb-2">{type.icon}</div>
+                                                    <div className="text-sm font-medium text-gray-700">{type.label}</div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {step === 2 && (
+                                    <div>
+                                        <h2 className="text-lg font-semibold mb-4">Contact Information</h2>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                    <User size={16} className="inline mr-1" />
+                                                    Your Name
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={currentIncident.name}
+                                                    onChange={(e) => handleInputChange('name', e.target.value)}
+                                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                                    placeholder="Enter your full name"
+                                                    required
+                                                />
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                    <Phone size={16} className="inline mr-1" />
+                                                    Phone Number
+                                                </label>
+                                                <input
+                                                    type="tel"
+                                                    value={currentIncident.phone}
+                                                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                                    placeholder="Enter your phone number"
+                                                    required
+                                                />
+                                            </div>
+                                            
+                                            <div className="flex space-x-3 pt-4">
+                                                <button
+                                                    onClick={() => setStep(1)}
+                                                    className="flex-1 py-3 px-4 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                                                >
+                                                    Back
+                                                </button>
+                                                <button
+                                                    onClick={() => setStep(3)}
+                                                    disabled={!currentIncident.name || !currentIncident.phone}
+                                                    className="flex-1 py-3 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                                                >
+                                                    Next
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {step === 3 && (
+                                    <div>
+                                        <h2 className="text-lg font-semibold mb-4">Location & Details</h2>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                    <MapPin size={16} className="inline mr-1" />
+                                                    Address
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={currentIncident.address}
+                                                    onChange={(e) => handleInputChange('address', e.target.value)}
+                                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                                    placeholder="Enter the emergency location"
+                                                    required
+                                                />
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                    Severity Level
+                                                </label>
+                                                <select
+                                                    value={currentIncident.severity}
+                                                    onChange={(e) => handleInputChange('severity', e.target.value)}
+                                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                                >
+                                                    <option value="low">Low - Non-life threatening</option>
+                                                    <option value="medium">Medium - Urgent attention needed</option>
+                                                    <option value="high">High - Life threatening</option>
+                                                </select>
+                                            </div>
+                                            
+                                            <div className="flex space-x-3 pt-4">
+                                                <button
+                                                    onClick={() => setStep(2)}
+                                                    className="flex-1 py-3 px-4 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                                                >
+                                                    Back
+                                                </button>
+                                                <button
+                                                    onClick={() => setStep(4)}
+                                                    disabled={!currentIncident.address}
+                                                    className="flex-1 py-3 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                                                >
+                                                    Next
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {step === 4 && (
+                                    <div>
+                                        <h2 className="text-lg font-semibold mb-4">Additional Details</h2>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                    Description
+                                                </label>
+                                                <textarea
+                                                    value={currentIncident.description}
+                                                    onChange={(e) => handleInputChange('description', e.target.value)}
+                                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                                    rows="4"
+                                                    placeholder="Please provide additional details about the emergency..."
+                                                />
+                                            </div>
+                                            
+                                            <div className="bg-blue-50 p-4 rounded-lg">
+                                                <h3 className="font-semibold text-blue-800 mb-2">Summary</h3>
+                                                <div className="text-sm text-blue-700 space-y-1">
+                                                    <p><strong>Type:</strong> {incidentTypes.find(t => t.id === currentIncident.type)?.label}</p>
+                                                    <p><strong>Name:</strong> {currentIncident.name}</p>
+                                                    <p><strong>Phone:</strong> {currentIncident.phone}</p>
+                                                    <p><strong>Address:</strong> {currentIncident.address}</p>
+                                                    <p><strong>Severity:</strong> {currentIncident.severity.toUpperCase()}</p>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="flex space-x-3 pt-4">
+                                                <button
+                                                    onClick={() => setStep(3)}
+                                                    className="flex-1 py-3 px-4 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                                                >
+                                                    Back
+                                                </button>
+                                                <button
+                                                    onClick={submitIncident}
+                                                    disabled={isSubmitting}
+                                                    className="flex-1 py-3 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                                                >
+                                                    {isSubmitting ? (
+                                                        <>
+                                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                                            Submitting...
+                                                        </>
+                                                    ) : (
+                                                        'Submit Emergency Report'
+                                                    )}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (currentView === 'confirmation') {
+                const latestIncident = incidents[incidents.length - 1];
+                
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4">
+                        <div className="max-w-md mx-auto">
+                            <div className="bg-white rounded-xl shadow-lg p-6 text-center">
+                                <div className="bg-green-500 text-white rounded-full p-4 inline-block mb-4">
+                                    <CheckCircle size={32} />
+                                </div>
+                                
+                                <h1 className="text-2xl font-bold text-gray-800 mb-2">Help is On the Way!</h1>
+                                <p className="text-gray-600 mb-6">Your emergency report has been received and a rescuer has been assigned.</p>
+                                
+                                <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
+                                    <h3 className="font-semibold text-gray-800 mb-3">Assigned Rescuer</h3>
+                                    <div className="space-y-2 text-sm">
+                                        <p><strong>Team:</strong> {latestIncident?.assignedRescuer?.name}</p>
+                                        <p><strong>ETA:</strong> {latestIncident?.eta} minutes</p>
+                                        <p><strong>Status:</strong> <span className="text-green-600 font-medium">En Route</span></p>
+                                    </div>
+                                </div>
+                                
+                                <div className="bg-blue-50 rounded-lg p-4 mb-6">
+                                    <div className="flex items-center text-blue-700 mb-2">
+                                        <Clock size={16} className="mr-2" />
+                                        <span className="font-semibold">Incident ID: #{latestIncident?.id}</span>
+                                    </div>
+                                    <p className="text-sm text-blue-600">
+                                        Save this ID for reference. All details have been stored in our system.
+                                    </p>
+                                </div>
+                                
+                                <button
+                                    onClick={resetForm}
+                                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+                                >
+                                    Return to Home
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (currentView === 'status') {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4">
+                        <div className="max-w-md mx-auto">
+                            <div className="bg-white rounded-xl shadow-lg p-6">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h1 className="text-xl font-bold text-gray-800">Incident Status</h1>
+                                    <button
+                                        onClick={() => setCurrentView('home')}
+                                        className="text-blue-500 hover:text-blue-700"
+                                    >
+                                        Back to Home
+                                    </button>
+                                </div>
+                                
+                                {incidents.length === 0 ? (
+                                    <div className="text-center py-8">
+                                        <MessageCircle size={48} className="text-gray-400 mx-auto mb-4" />
+                                        <p className="text-gray-600">No incidents reported yet.</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {incidents.map(incident => (
+                                            <div key={incident.id} className="border border-gray-200 rounded-lg p-4">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="font-semibold text-gray-800">#{incident.id}</span>
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                        incident.status === 'assigned' 
+                                                            ? 'bg-green-100 text-green-800' 
+                                                            : 'bg-yellow-100 text-yellow-800'
+                                                    }`}>
+                                                        {incident.status === 'assigned' ? 'Rescuer Assigned' : 'Pending'}
+                                                    </span>
+                                                </div>
+                                                
+                                                <div className="text-sm text-gray-600 space-y-1">
+                                                    <p><strong>Type:</strong> {incidentTypes.find(t => t.id === incident.type)?.label}</p>
+                                                    <p><strong>Location:</strong> {incident.address}</p>
+                                                    <p><strong>Time:</strong> {new Date(incident.timestamp).toLocaleString()}</p>
+                                                    {incident.assignedRescuer && (
+                                                        <>
+                                                            <p><strong>Rescuer:</strong> {incident.assignedRescuer.name}</p>
+                                                            <p><strong>ETA:</strong> {incident.eta} minutes</p>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+        };
+
+        ReactDOM.render(<EmergencyApp />, document.getElementById('root'));
+    </script>
+</body>
+</html>
